@@ -9,43 +9,100 @@ struct Noeud{
 
 struct Liste{
     Noeud* premier;
-    // your code
+    int nbNoeud;
+    Noeud* last;
 };
 
 struct DynaTableau{
     int* donnees;
-    // your code
+    int nbData;
+    int size;
 };
 
 
 void initialise(Liste* liste)
 {
-
+        liste->premier = NULL;
+        liste->last = NULL;
+        liste->nbNoeud = 0;
 }
 
 bool est_vide(const Liste* liste)
 {
-    return false;
+    if(liste->nbNoeud == 0)
+    {
+        return true;
+    }else
+        return false;
 }
 
 void ajoute(Liste* liste, int valeur)
 {
 
+      Noeud * newNoeud = new Noeud;
+      nvNoeud->donnee = valeur;
+      nvNoeud->suivant = NULL;
+
+      if(liste->premier == NULL){
+          liste->premier = newNoeud;
+          liste->last = newNoeud;
+      }else{
+          liste->last->suivant = newNoeud;
+          liste->last = newNoeud;
+      }
+
+      liste->nbNoeud = liste->nbNoeud + 1;
 }
 
 void affiche(const Liste* liste)
 {
+    cout << endl;
+        cout << "Ta petite liste zin:" << endl << endl;
+
+        int count = 1;
+        Noeud * tmp = liste->premier;
+
+        while(tmp != NULL){
+            cout << "Val n: " << count << " -> " << tmp->donnee << endl;
+            tmp = tmp->suivant;
+            count++;
+        }
+        cout << endl;
 
 }
 
 int recupere(const Liste* liste, int n)
 {
-    return 0;
+    if(n>=0 && n<=liste->nbNoeud){
+            Noeud * tmp = liste->premier;
+
+            for(int i=0; i<n-1; i++){
+                tmp = tmp->suivant;
+            }
+
+            return tmp->donnee;
+        }else{
+            return -1;
+        }
 }
 
 int cherche(const Liste* liste, int valeur)
 {
-    return -1;
+    int count = 0, index = -1;
+        bool find = false;
+
+        Noeud * tmp = liste->premier;
+
+        while(!find && tmp != NULL){
+            if(tmp->donnee == valeur){
+                index = count;
+                find = true;
+            }
+            tmp = tmp->suivant;
+            count++;
+        }
+
+        return index;
 }
 
 void stocke(Liste* liste, int n, int valeur)

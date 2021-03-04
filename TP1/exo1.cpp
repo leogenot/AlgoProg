@@ -8,7 +8,10 @@ int power(int value, int n)
 {
     Context _("power", value, n); // do not care about this, it allow the display of call stack
 
-    // your code
+    if (n != 0)
+            return (value*power(value, n-1));
+        else
+            return 1;
 
 
     return_and_display(1);

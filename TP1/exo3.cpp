@@ -9,8 +9,17 @@ int search(int value, Array& toSort, int size)
 {
     Context _("search", value, size); // do not care about this, it allow the display of call stack
 
-    // your code
-
+    if(size==1){
+        if(toSort[size-1]==value){
+            return(size-1);
+        }
+    }else{
+        if(toSort[size-1]==value){
+            return(size-1);
+        }else{
+            return search(value,toSort,size-1);
+        }
+    }
     return_and_display(-1);
 }
 
