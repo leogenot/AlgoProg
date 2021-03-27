@@ -23,7 +23,16 @@ std::vector<string> TP5::names(
 unsigned long int hash(string key)
 {
     // return an unique hash id from key
-    return 0;
+    int i=0;
+    int value=0;
+    while(key[i]){
+        int puissance=key.size()-(i+1);
+        value+=(int)key[i]*std::pow(127,puissance);
+        i++;
+    }
+
+    return value;
+
 }
 
 struct MapNode : public BinaryTree
@@ -52,6 +61,23 @@ struct MapNode : public BinaryTree
      */
     void insertNode(MapNode* node)
     {
+        if (node->key_hash> this->key_hash) {
+                    if (this->right == NULL) {
+                        this->right = node;
+                    }
+                    else {
+                        this->right->insertNode(node);
+                    }
+                }
+                else {
+                    if (this->left == NULL) {
+                        this->left = node;
+                    }
+                    else {
+                        this->left->insertNode(node);
+                    }
+                }
+
 
     }
 
@@ -79,6 +105,12 @@ struct Map
      */
     void insert(string key, int value)
     {
+        if(this->root==NULL){
+                    this->root=new MapNode(key, value);
+                }
+                else{
+                    this->root->insertNode(key,value);
+                }
 
     }
 
@@ -89,6 +121,23 @@ struct Map
      */
     int get(string key)
     {
+        int code = hash(key);
+                MapNode* root = this->root;
+
+                while (root != NULL) {
+                    if (root->key_hash == code) {
+                        return root->value;
+                    }
+                    else {
+                        if (code > root->key_hash) {
+                            root = root->right;
+                        }
+                        else {
+                            root = root->left;
+                        }
+                    }
+                }
+
         return -1;
     }
 
