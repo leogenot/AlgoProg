@@ -1,59 +1,109 @@
 #include "tp6.h"
 #include <math.h>
 
+GraphWindow::GraphWindow(QWidget *parent)
+    : MainWindow(parent), graph(nullptr), buildButton("Build"),
+      deepTravelButton("Deep Travel"), wideTravelButton("Wide Travel"),
+      cycleButton("Detect Cycle")
+{
+    qsrand(time(nullptr));
+
+    this->addIntParam("n", qrand() % 8 + 3, 3);
+
+    startButton.hide();
+    stopButton.hide();
+
+    this->workerLayout->addWidget(&buildButton);
+    this->workerLayout->addWidget(&deepTravelButton);
+    this->workerLayout->addWidget(&wideTravelButton);
+    this->workerLayout->addWidget(&cycleButton);
+
+    threads.insert(&buildButton, new GraphBuildThread(this, this));
+    threads.insert(&deepTravelButton, new GraphWideTravelThread(this, this));
+    threads.insert(&wideTravelButton, new GraphDeepTravelThread(this, this));
+    threads.insert(&cycleButton, new GraphCycleDetectionThread(this, this));
+
+    connect(&buildButton, SIGNAL(clicked()), this, SLOT(runThread()));
+    connect(&deepTravelButton, SIGNAL(clicked()), this, SLOT(runThread()));
+    connect(&wideTravelButton, SIGNAL(clicked()), this, SLOT(runThread()));
+    connect(&cycleButton, SIGNAL(clicked()), this, SLOT(runThread()));
+}
+
 Graph &GraphWindow::newGraph(int size)
 {
-	graph = new Graph(size);
-	return *graph;
+    if (graph)
+    {
+        clearGraph();
+        delete graph;
+        graph = nullptr;
+    }
+    graph = new Graph(size);
+    return *graph;
+}
+
+Graph *GraphWindow::getGraph()
+{
+    return this->graph;
+}
+
+void GraphWindow::clearGraph()
+{
+    for (GraphGraphicsItem* item : graphItems)
+        delete item;
+    for (QVector<EdgeGraphicsItem*> items : edgeItems)
+        for (EdgeGraphicsItem* item : items)
+            delete item;
+    graphItems.clear();
+    edgeItems.clear();
 }
 
 int GraphWindow::updateGraphItems(int itemWidth, int &maxY, int &maxX)
 {
-	srand(100);
-	int X, Y;
-	int centerX = width() * 0.5, centerY = height() * 0.5;
-	int distance = height() * 0.25;
-	float x = 0;
-	for (GraphGraphicsItem* item : graphItems)
-	{
-		X = centerX + cos(x) * distance + itemWidth * -2 + qrand() % ((int)(width() * 0.1f));
-		Y = centerY + sin(x) * distance + itemWidth * -2 + qrand() % ((int)(height() * 0.1f));
+    srand(100);
+    int X, Y;
+    int centerX = width() * 0.5, centerY = height() * 0.5;
+    int distance = height() * 0.25;
+    float x = 0;
+    for (GraphGraphicsItem* item : graphItems)
+    {
+        X = centerX + cos(x) * distance + itemWidth * -2 + qrand() % ((int)(width() * 0.1f));
+        Y = centerY + sin(x) * distance + itemWidth * -2 + qrand() % ((int)(height() * 0.1f));
 
-		if (Y < 0)
-			Y = qrand() % ((int)(height() * 0.1f));
-		if (X < 0)
-			X = qrand() % ((int)(width() * 0.1f));
+        if (Y < 0)
+            Y = qrand() % ((int)(height() * 0.1f));
+        if (X < 0)
+            X = qrand() % ((int)(width() * 0.1f));
 
-		item->setRect(X, Y, itemWidth, itemWidth);
+        item->setRect(X, Y, itemWidth, itemWidth);
 
-		if (X > maxX)
-			maxX = X;
+        if (X > maxX)
+            maxX = X;
 
-		if (Y > maxY)
-			maxY = Y;
+        if (Y > maxY)
+            maxY = Y;
 
-		x += .7f;
-		distance += height() * 0.04f;
-	}
+        x += .7f;
+        distance += height() * 0.04f;
+    }
 
-	for (const QVector<EdgeGraphicsItem*>& edges : edgeItems)
-	{
-		for (EdgeGraphicsItem* edge : edges)
-		{
-			edge->updateLayout();
-		}
-	}
-	return maxY;
+    for (const QVector<EdgeGraphicsItem*>& edges : edgeItems)
+    {
+        for (EdgeGraphicsItem* edge : edges)
+        {
+            edge->updateLayout();
+        }
+    }
+    return maxY;
 }
 
 void GraphWindow::updateLayout()
 {
-	if (dirty)
-	{
-		int itemWidth = qMax<int>(50, width() * 0.01f);
-		int maxX=0, maxY=0;
+    if (dirty)
+    {
+        int itemWidth = qMax<int>(50, width() * 0.01f);
+        int maxX=0, maxY=0;
 
-		updateStatusItem(itemWidth);
+        updateStatusItem(itemWidth);
 		updateBackground();
 		updateGraphItems(itemWidth, maxX, maxY);
 
@@ -66,19 +116,17 @@ void GraphWindow::handleResult()
 {
 	Base::handleResult();
 	this->dirty = true;
-	if (!(*currentThread)->succeeded())
-		return;
-	currentThread++;
-	if (currentThread != threads.end())
-	{
-		workerThread = *currentThread;
-		connect(workerThread, SIGNAL(finished()), this, SLOT(handleResult()));
-	}
 }
 
 void GraphWindow::updateScene()
 {
 	Base::updateScene();
+
+    if (!graph)
+    {
+        return;
+    }
+
 	while (graphItems.size() < graph->nodesCount())
 	{
 		GraphNode& node = (*graph)[graphItems.size()];
@@ -250,51 +298,94 @@ const GraphNode* GraphGraphicsItem::node() const
 
 void GraphBuildThread::run()
 {
-	qsrand(time(nullptr));
-	int nodeCount = qrand() % 5 + 5;
-	int** matrix = new int*[nodeCount];
-	for (int i=0; i<nodeCount; ++i)
+    qsrand(time(nullptr));
+
+    int n = this->mainWindow->getParam("n").toInt();
+    this->graph = &this->mainWindow->newGraph(n);
+
+    int** matrix = new int*[n];
+    for (int i=0; i<n; ++i)
 	{
-		matrix[i] = new int[nodeCount];
-		for (int j=0; j<nodeCount; ++j)
+        matrix[i] = new int[n];
+        for (int j=0; j<n; ++j)
 		{
 			matrix[i][j] = (qrand() % 300 - 230) / 2;
 			if (matrix[i][j] < 0)
 				matrix[i][j] = 0;
 		}
 	}
-	this->graph.buildFromAdjenciesMatrix(matrix, nodeCount);
+    this->graph->buildFromAdjenciesMatrix(matrix, n);
 	this->success = true;
 }
 
 void GraphCycleDetectionThread::run()
 {
-	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-	this->_message = QString("Graph has cycle: %1").arg(graph.detectCycle());
-	this->success = true;
+    this->graph = this->mainWindow->getGraph();
+
+    if (!graph || !graph->nodesCount())
+    {
+        this->success = false;
+        this->_message = QString("The graph is not built !");
+        return;
+    }
+
+    qsrand(time(NULL));
+    int nodesCount = this->graph->nodesCount();
+    int index = qrand() % nodesCount;
+    bool visited[nodesCount];
+    memset(visited, 0, sizeof(bool) * nodesCount);
+
+    bool cycle = graph->detectCycle(&(*this->graph)[index], visited);
+    bool assert_cycle = false;
+
+    std::queue<GraphNode*> nodes_queue;
+    memset(visited, 0, sizeof(bool) * nodesCount);
+
+    nodes_queue.push(&(*this->graph)[index]);
+    while (nodes_queue.size())
+    {
+        GraphNode* node = nodes_queue.front();
+        nodes_queue.pop();
+        if (visited[node->value])
+        {
+            assert_cycle = true;
+            break;
+        }
+        visited[node->value] = true;
+        for (Edge* sibling=node->edges; sibling; sibling=sibling->next)
+        {
+            nodes_queue.push(sibling->destination);
+        }
+    }
+
+    this->_message = QString("Graph has cycle from Node<%1>: %2")
+            .arg(index).arg(cycle ? "true" : "false");
+    this->success = assert_cycle == cycle;
 }
 
 void GraphWideTravelThread::run()
 {
-	if (!graph.nodesCount())
+    this->graph = this->mainWindow->getGraph();
+
+    if (!graph || !graph->nodesCount())
 	{
 		this->success = false;
 		this->_message = QString("The graph is not built !");
 		return;
 	}
-	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+
 	srand(time(nullptr));
-	int nodeIndex = qrand() % graph.nodesCount();
-	GraphNode* first = &graph[nodeIndex];
+    int nodeIndex = qrand() % graph->nodesCount();
+    GraphNode* first = &(*graph)[nodeIndex];
 
 	int nodeSize = 0;
-	GraphNode** nodes = new GraphNode*[graph.nodesCount()];
-	bool* visited = new bool[graph.nodesCount()];
+    GraphNode** nodes = new GraphNode*[graph->nodesCount()];
+    bool* visited = new bool[graph->nodesCount()];
 
-	memset(nodes, 0, sizeof(GraphNode*) * graph.nodesCount());
-	memset(visited, 0, sizeof(bool) * graph.nodesCount());
+    memset(nodes, 0, sizeof(GraphNode*) * graph->nodesCount());
+    memset(visited, 0, sizeof(bool) * graph->nodesCount());
 
-	graph.wideTravel(first, nodes, nodeSize, visited);
+    graph->wideTravel(first, nodes, nodeSize, visited);
 
 	this->_message = QString("Graph wide travel starting by ");
 	this->_message += QString(first->toString().c_str()) + QString(":\n");
@@ -310,25 +401,27 @@ void GraphWideTravelThread::run()
 
 void GraphDeepTravelThread::run()
 {
-	if (!graph.nodesCount())
-	{
-		this->success = false;
-		this->_message = QString("The graph is not built !");
-		return;
-	}
-	std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    this->graph = this->mainWindow->getGraph();
+
+    if (!graph || !graph->nodesCount())
+    {
+        this->success = false;
+        this->_message = QString("The graph is not built !");
+        return;
+    }
+
 	srand(time(nullptr));
-	int nodeIndex = qrand() % graph.nodesCount();
-	GraphNode* first = &graph[nodeIndex];
+    int nodeIndex = qrand() % graph->nodesCount();
+    GraphNode* first = &(*graph)[nodeIndex];
 
 	int nodeSize = 0;
-	GraphNode** nodes = new GraphNode*[graph.nodesCount()];
-	bool* visited = new bool[graph.nodesCount()];
+    GraphNode** nodes = new GraphNode*[graph->nodesCount()];
+    bool* visited = new bool[graph->nodesCount()];
 
-	memset(nodes, 0, sizeof(GraphNode*) * graph.nodesCount());
-	memset(visited, 0, sizeof(bool) * graph.nodesCount());
+    memset(nodes, 0, sizeof(GraphNode*) * graph->nodesCount());
+    memset(visited, 0, sizeof(bool) * graph->nodesCount());
 
-	graph.deepTravel(first, nodes, nodeSize, visited);
+    graph->deepTravel(first, nodes, nodeSize, visited);
 
 	this->_message = QString("Graph deep travel starting by ");
 	this->_message += QString(first->toString().c_str()) + QString(":\n");

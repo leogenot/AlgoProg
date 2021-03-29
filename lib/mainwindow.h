@@ -82,6 +82,14 @@ public:
     static MainWindow* instance();
 
 	explicit MainWindow(QWidget* parent=nullptr);
+    virtual ~MainWindow()
+    {
+        if (workerThread && workerThread->isRunning())
+        {
+            MainWindow::instruction_duration = 1;
+            workerThread->wait(500);
+        }
+    };
 
 	Array& mainArray() {return *arrays[0];}
 	Array& newRandomArray(uint size);
@@ -93,10 +101,11 @@ public:
 
 	void setBackground(QImage* image);
 
-	virtual void updateLayout();
 	void updateStatusItem(int itemWidth);
 	void updateBackground();
 	int updateNumberItems(int itemWidth, int &maxY, int &maxX);
+
+    virtual void updateLayout();
     virtual void updateLayoutItems(int itemWidth, int& originX, int& originY);
 
 
@@ -121,7 +130,6 @@ public:
 
 	bool eventFilter(QObject* object, QEvent* event);
 
-    ~MainWindow();
 public slots:
     virtual void updateScene();
     virtual void startWorkerThread();

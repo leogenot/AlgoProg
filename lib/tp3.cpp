@@ -482,7 +482,6 @@ void TreeNumberGraphicsItem::updateLayout(int &maxX, int &maxY)
         float y_factor = qMin<float>(qMax<float>(log((1.f+height) * leftShifting), 3.0), 7) * _TestMainWindow::yFactor;
         float x_factor = qMin<float>(qMax<float>(leftShifting * 0.75, 0.15), 6) * _TestMainWindow::xFactor;
 
-        qDebug() << height << ' ' << y_factor;
         left->setRect(rect.x() - width * x_factor,
                       rect.y() + height * y_factor, width, width);
         left->updateLayout(maxX, maxY);
@@ -496,7 +495,6 @@ void TreeNumberGraphicsItem::updateLayout(int &maxX, int &maxY)
         float y_factor = qMin<float>(qMax<float>(log((1.25f+height) * rightShifting), 3.0), 7) * _TestMainWindow::yFactor;
         float x_factor = qMin<float>(qMax<float>(rightShifting * 0.75, 0.15), 5) * _TestMainWindow::xFactor;
 
-        qDebug() << height << ' ' << y_factor;
         right->setRect(rect.x() + width * x_factor,
                        rect.y() + height * y_factor, width, width);
         right->updateLayout(maxX, maxY);

@@ -8,31 +8,33 @@
 #include "mainwindow.h"
 #include "thread.h"
 
+class GraphWindow;
+
 class GraphThread : public Thread
 {
 
 public:
-	GraphThread(MainWindow* mainWindow, Graph& graph, QObject *parent = nullptr)
-		: Thread(parent), mainWindow(mainWindow), success(false), graph(graph) {}
+    GraphThread(GraphWindow* mainWindow, QObject *parent = nullptr)
+        : Thread(parent), mainWindow(mainWindow), success(false) {}
 
 	virtual bool succeeded() const {return success;}
 	virtual const QString& message() const {return _message;}
 	virtual ~GraphThread() {}
 
 protected:
-	MainWindow* mainWindow;
+    GraphWindow* mainWindow;
 	QString _message;
 	bool success;
 
-	Graph& graph;
+    Graph* graph;
 };
 
 class GraphBuildThread : public GraphThread
 {
 
 public:
-	GraphBuildThread(MainWindow* mainWindow, Graph& graph, QObject *parent = nullptr)
-		: GraphThread(mainWindow, graph, parent) {}
+    GraphBuildThread(GraphWindow* GraphWindow, QObject *parent = nullptr)
+        : GraphThread(GraphWindow, parent) {}
 	void run() override;
 
 	~GraphBuildThread() {}
@@ -42,8 +44,8 @@ class GraphDeepTravelThread : public GraphThread
 {
 
 public:
-	GraphDeepTravelThread(MainWindow* mainWindow, Graph& graph, QObject *parent = nullptr)
-		: GraphThread(mainWindow, graph, parent) {}
+    GraphDeepTravelThread(GraphWindow* mainWindow, QObject *parent = nullptr)
+        : GraphThread(mainWindow, parent) {}
 	void run() override;
 
 	~GraphDeepTravelThread() {}
@@ -53,8 +55,8 @@ class GraphWideTravelThread : public GraphThread
 {
 
 public:
-	GraphWideTravelThread(MainWindow* mainWindow, Graph& graph, QObject *parent = nullptr)
-		: GraphThread(mainWindow, graph, parent) {}
+    GraphWideTravelThread(GraphWindow* mainWindow, QObject *parent = nullptr)
+        : GraphThread(mainWindow, parent) {}
 	void run() override;
 
 	~GraphWideTravelThread() {}
@@ -64,8 +66,8 @@ class GraphCycleDetectionThread : public GraphThread
 {
 
 public:
-	GraphCycleDetectionThread(MainWindow* mainWindow, Graph& graph, QObject *parent = nullptr)
-		: GraphThread(mainWindow, graph, parent) {}
+    GraphCycleDetectionThread(GraphWindow* mainWindow, QObject *parent = nullptr)
+        : GraphThread(mainWindow, parent) {}
 	void run() override;
 
 	~GraphCycleDetectionThread() {}
@@ -76,7 +78,8 @@ class EdgeGraphicsItem : public QGraphicsLineItem
 public:
 	typedef QGraphicsLineItem Base;
 
-	explicit EdgeGraphicsItem(const QGraphicsEllipseItem* source, const QGraphicsEllipseItem* destination,
+    explicit EdgeGraphicsItem(const QGraphicsEllipseItem* source,
+                              const QGraphicsEllipseItem* destination,
 							  int distance, QGraphicsItem* parent=nullptr);
 	void setDistance(int distance);
 	void setPath(const QGraphicsEllipseItem *source, const QGraphicsEllipseItem *destination);
@@ -124,27 +127,18 @@ private:
 
 class GraphWindow : public MainWindow
 {
+    Q_OBJECT
+
 public:
 	typedef MainWindow Base;
 
-	GraphWindow(QWidget *parent=nullptr)
-		: MainWindow(parent), graph(nullptr)
-	{
-		qsrand(time(nullptr));
-		int n = qrand() % 8 + 5;
-		this->newGraph(n);
-
-		threads.push_back(new GraphBuildThread(this, *graph, this));
-		threads.push_back(new GraphDeepTravelThread(this, *graph, this));
-		threads.push_back(new GraphWideTravelThread(this, *graph, this));
-		threads.push_back(new GraphCycleDetectionThread(this, *graph, this));
-
-		currentThread = threads.begin();
-		workerThread = *currentThread;
-		connect(workerThread, SIGNAL(finished()), this, SLOT(handleResult()));
-	}
+    GraphWindow(QWidget *parent=nullptr);
+    virtual ~GraphWindow() {};
 
 	Graph& newGraph(int size);
+    Graph* getGraph();
+
+    void clearGraph();
 
 	int updateGraphItems(int itemWidth, int &maxY, int &maxX);
 
@@ -152,12 +146,38 @@ public:
 	void handleResult() override;
 	void updateScene() override;
 
+public slots:
+    void runThread()
+    {
+        QObject* source = sender();
+        if (workerThread)
+        {
+            disconnect(workerThread, SIGNAL(finished()), this, SLOT(handleResult()));
+            workerThread->quit();
+            workerThread = nullptr;
+        }
+
+        QPushButton* button = dynamic_cast<QPushButton*>(source);
+        if (button)
+        {
+            workerThread = this->threads[button];
+            connect(workerThread, SIGNAL(finished()), this, SLOT(handleResult()));
+            workerThread->start();
+        }
+    }
+
 private:
 	QVector<GraphGraphicsItem *> graphItems;
 	QVector<QVector<EdgeGraphicsItem *> > edgeItems;
 	Graph* graph;
-	QLinkedList<Thread*> threads;
-	QLinkedList<Thread*>::iterator currentThread;
+
+    QMap<QObject*, Thread*> threads;
+
+
+    QPushButton buildButton;
+    QPushButton deepTravelButton;
+    QPushButton wideTravelButton;
+    QPushButton cycleButton;
 };
 
 #endif // TP6_H
